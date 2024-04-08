@@ -1,0 +1,17 @@
+<policies>
+  <inbound>
+    <base />
+    <set-query-parameter name="code" exists-action="override">
+      
+    </set-query-parameter>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>
