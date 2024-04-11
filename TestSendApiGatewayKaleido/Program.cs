@@ -1,15 +1,21 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Net.Http.Headers;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Epoche;
+using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Macs;
+using SHA3.Net;
 
 //Esto se debe ajustar en todos los envios a blockchain
 Console.WriteLine("PoC Api GateWay BlockChain!*** Envío a BlockChain");
 var sendResponse= await SendAsync();
+
+Console.WriteLine("Datos de la transaccion");
+Console.WriteLine(JsonSerializer.Serialize(sendResponse));
+
 //el send Response se debe almacenar en la base de datos y marcar cuando la respuesta este completa 
 //ya sea por medio del webHook o por medio del Job de Recuperacion
 Console.WriteLine("Presion tecla para ver respuesta!**** ");
@@ -46,7 +52,12 @@ static async Task<SendResponse> SendAsync()
     var methodName = "Insert";
 
     //var id = "121b5ec1-ae30-4a5f-a745-bd391c7840ac";//Guid.NewGuid();
-    var id = Guid.NewGuid();
+    var id = "11";//id.NewGuid();
+
+    var idHash = GetTransactionHash3(id);
+
+ 
+
     var parameters = new Dictionary<string, object>
     {
       { "movementId", id  },
@@ -64,10 +75,20 @@ static async Task<SendResponse> SendAsync()
     //este es el objeto que se va a enviar al metodo del smart contract
 
     var sendResponse= await kld.PostAsync(new SendRequest(contractAddress, methodName, parameters));
-
+    sendResponse.TransactionId = id;
+    sendResponse.TransactionIdHash = idHash;
     return sendResponse;
 
 }
+
+
+
+static string GetTransactionHash3(string rawTransaction) 
+{
+    var hash = Keccak256.ComputeHash(rawTransaction).ToHex(false);
+    return hash;
+}
+
 static async Task<ReplyResponse> ReplyAsync(SendResponse sendResponse) 
 {
     //esto debe venir del keyVault
@@ -76,6 +97,17 @@ static async Task<ReplyResponse> ReplyAsync(SendResponse sendResponse)
     var kld = new KaledioApiGateway(config);
     var replyReponse= await kld.GetReplyAsync(sendResponse.Id);
     return replyReponse;
+}
+
+public static class ByteArrayExtensions
+{
+    public static string ToHex(this byte[] bytes, bool upperCase)
+    {
+        StringBuilder result = new StringBuilder(bytes.Length * 2);
+        for (int i = 0; i < bytes.Length; i++)
+            result.Append(bytes[i].ToString(upperCase ? "X2" : "x2"));
+        return result.ToString();
+    }
 }
 public record Config(string UrlBase, string FromAdress) 
 {
@@ -90,6 +122,7 @@ public record Config(string UrlBase, string FromAdress)
 }
 public class KaledioApiGateway 
 {
+    //Representa datos que vienen de la configuracion, usualmente de keyvaul y se tienen el QuorumProfile
     private Config _config;
     public KaledioApiGateway(Config config) 
     {
@@ -120,7 +153,6 @@ public class KaledioApiGateway
         Console.WriteLine(await response.Content.ReadAsStringAsync());
         return replyResponse;
     }
-
     private HttpClient CreateHttpClient()
     {
         HttpClient httpClient = new HttpClient
@@ -131,21 +163,17 @@ public class KaledioApiGateway
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Authorization);
         return httpClient;
     }
-
     private string GetContractPath(string contractAdress, string methodName, bool sync = false)
     {
         return $"/instances/{contractAdress}/{methodName}?kld-from={_config.FromAdress}&kld-sync={sync.ToString().ToLower()}";
     }
-        
     private string GetBase64Authorization()
     {
         var byteArray = Encoding.ASCII.GetBytes(new Uri(_config.UrlBase).UserInfo);
         var base64Authorization = Convert.ToBase64String(byteArray);
         return base64Authorization;
     }
-
 }
-
 /// <summary>
 /// Example SendRespuesta {"sent":true,"id":"ca7dfed5-fb95-4c7f-5068-1264f7f62baf","msg":"u0m1l769ao-u0su1it3ix-requests:0:16"}
 /// </summary>
@@ -161,8 +189,17 @@ public class SendResponse
     public string Id { get; set; }
     [JsonPropertyName("msg")]
     public string Message { get; set; }
+    /// <summary>
+    /// Esto se calcula en c# para poder identificar la respuesta del webHook
+    /// </summary>
+    [JsonPropertyName("transaccion_id_hash")]
+    public string TransactionIdHash { get; set; }
+    /// <summary>
+    /// Esto se calcula en c# para poder identificar la respuesta del webHook
+    /// </summary>
+    [JsonPropertyName("transaccion_id")]
+    public string TransactionId { get; set; }
 }
-
 /// <summary>
 /// *************************************Ejemplo de Respuesta exitosa
 /// {
@@ -230,7 +267,6 @@ public class ReplyResponse
 
     public bool HasError => headers.type == "Error";
 }
-
 public class Headers
 {
     public string id { get; set; }
