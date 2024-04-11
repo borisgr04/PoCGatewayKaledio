@@ -5,9 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Epoche;
-using Org.BouncyCastle.Crypto.Digests;
-using Org.BouncyCastle.Crypto.Macs;
-using SHA3.Net;
+
 
 //Esto se debe ajustar en todos los envios a blockchain
 Console.WriteLine("PoC Api GateWay BlockChain!*** Envío a BlockChain");
@@ -56,8 +54,6 @@ static async Task<SendResponse> SendAsync()
 
     var idHash = GetTransactionHash3(id);
 
- 
-
     var parameters = new Dictionary<string, object>
     {
       { "movementId", id  },
@@ -80,8 +76,6 @@ static async Task<SendResponse> SendAsync()
     return sendResponse;
 
 }
-
-
 
 static string GetTransactionHash3(string rawTransaction) 
 {
