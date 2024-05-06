@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,22 +31,41 @@ namespace MyFunctionApp
         [FunctionName("PostFunction")]
         [OpenApiOperation(operationId: "PostFunction", tags: new[] { "name" })]
         [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
-        [OpenApiRequestBody("application/json", typeof(List<ResponseTrueMovementLog>))]
+        [OpenApiRequestBody("application/json", typeof(List<ResponseTrueLog>))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/plain", bodyType: typeof(string), Description = "The OK response")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function,  "post", Route = null)] HttpRequest req)
         {
-            //var tupo = req.Headers["ServiceType"];
+            var type = req.Headers["ServiceType"];
+
+            var isBridge = req.Headers["IsBridge"];
 
             _logger.LogInformation("C# HTTP trigger function processed a request.");
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            
-            //var data = JsonConvert.DeserializeObject<List<ResponseTrueMovementLog>>(requestBody);
+
+            //almacenar requestBody en BlobStorage ??
+
+            var data = JsonConvert.DeserializeObject<List<ResponseTrueLog>>(requestBody);
             //var end=data.FirstOrDefault().signature.IndexOf("(");
             //var evento = data.FirstOrDefault().signature.Substring(0, end);
 
+            ///
 
+            foreach (var item in data)
+            {
+                // EntityId se consulta (movement.MovementTransactionId) de la tabla de respuesta  con el id enmascarado que se recibe aca item.data.Id 
+                var result = new OffchainMessage()
+                {
+                    BlockNumber = item.blockNumber,// isBridge
+                    //EntityId = movement.MovementTransactionId,
+                    //Status = StatusType.PROCESSED,
+                    TransactionHash = item.transactionHash,
+                };
+                //enviar a la cola
+                //await this.QueueAsync(result, movement.MovementTransactionId, ServiceType.Movement).ConfigureAwait(false);
+            }
+            
             //var dataTrue = JsonConvert.DeserializeObject<List<ResponseTrueLog>>(requestBody);
             //var endTrue = dataTrue.FirstOrDefault().signature.IndexOf("(");
             //var eventoTrue = dataTrue.FirstOrDefault().signature.Substring(0, end);
@@ -100,7 +120,7 @@ namespace MyFunctionApp
             }
         }
 
-
+        /// Header => Movimiento
         /// <summary>
         /// [
         ///      {
@@ -166,13 +186,6 @@ namespace MyFunctionApp
         ///        "data": {
         ///          "ActionType": "0",
         ///          "Id": "0x290d38a37c9275149c866a7e781aa7e10532ae5cca060c7987e20e48cc37b168",
-        ///          "Metadata": "meta data en json poc",
-        ///          "MovementId": "0x9d84d8f264496b4481f692ca5e9e41bb58db2b39aa228d86d643615a4b9dfac9",
-        ///          "OperationalDate": "7878",
-        ///          "Timestamp": "1712357145",
-        ///          "Unit": "unidad-medidad poc 16",
-        ///          "Version": "2",
-        ///          "Volume": "33"
         ///        },
         ///        "subId": "sb-d5d01a47-15d2-4a0d-5fbb-99758a3f8e0d",
         ///        "signature": "TrueMovementLog(bytes32,bytes32,int64,uint8,int256,uint8,string,string,uint256)",
@@ -183,8 +196,8 @@ namespace MyFunctionApp
 
         public class ResponseTrueLog
         {
-
-            public string address { get; set; }
+            [JsonPropertyName("address")] 
+            public string Address { get; set; }
             public string blockNumber { get; set; }
             public string blockHash { get; set; }
             public string transactionIndex { get; set; }
@@ -200,7 +213,48 @@ namespace MyFunctionApp
             public string Id { get; set; }
         }
 
+        public class OffchainMessage
+        {
+            /// <summary>
+            /// Gets or sets the Transaction Hash.
+            /// </summary>
+            /// <value>
+            /// The Transaction Hash.
+            /// </value>
+            public string TransactionHash { get; set; }
 
+            /// <summary>
+            /// Gets or sets the Block Number.
+            /// </summary>
+            /// <value>
+            /// The Block Number.
+            /// </value>
+            public string BlockNumber { get; set; }
+
+            /// <summary>
+            /// Gets or sets the entity identifier.
+            /// </summary>
+            /// <value>
+            /// The entity identifier.
+            /// </value>
+            public int EntityId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the name.
+            /// </summary>
+            /// <value>
+            /// The name.
+            /// </value>
+            //public ServiceType Type { get; set; }
+
+            /// <summary>
+            /// Gets or sets the name.
+            /// </summary>
+            /// <value>
+            /// The name.
+            /// </value>
+            public StatusType Status { get; set; }
+        }
 
     }
 }

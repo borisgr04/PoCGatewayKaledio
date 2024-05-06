@@ -9,6 +9,9 @@ using Epoche;
 
 //Esto se debe ajustar en todos los envios a blockchain
 Console.WriteLine("PoC Api GateWay BlockChain!*** Envío a BlockChain");
+
+
+
 var sendResponse= await SendAsync();
 
 Console.WriteLine("Datos de la transaccion");
@@ -52,7 +55,7 @@ static async Task<SendResponse> SendAsync()
     //var id = "121b5ec1-ae30-4a5f-a745-bd391c7840ac";//Guid.NewGuid();
     var id = "11";//id.NewGuid();
 
-    var idHash = GetTransactionHash3(id);
+    var idHash = GetTransactionHash3(id);//BlockchainMovementTransactionId.
 
     var parameters = new Dictionary<string, object>
     {
@@ -72,6 +75,7 @@ static async Task<SendResponse> SendAsync()
 
     var sendResponse= await kld.PostAsync(new SendRequest(contractAddress, methodName, parameters));
     sendResponse.TransactionId = id;
+
     sendResponse.TransactionIdHash = idHash;
     return sendResponse;
 
