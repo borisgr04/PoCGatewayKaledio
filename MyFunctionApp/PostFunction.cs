@@ -253,7 +253,7 @@ namespace MyFunctionApp
             /// <value>
             /// The name.
             /// </value>
-            public StatusType Status { get; set; }
+            //public StatusType Status { get; set; }
         }
 
     }
